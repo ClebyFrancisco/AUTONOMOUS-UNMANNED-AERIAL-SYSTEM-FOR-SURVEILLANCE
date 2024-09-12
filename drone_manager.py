@@ -7,13 +7,16 @@ import time
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 logger = logging.getLogger(__name__)
 
+DEFAULT_DISTANCE = 0.30
+
 class DroneManager(object):
-    def __init__(self, host_ip='192.168.10.2', host_port=8889, drone_ip='192.168.10.1', drone_port=8889):
+    def __init__(self, host_ip='192.168.10.2', host_port=8889, drone_ip='192.168.10.1', drone_port=8889, is_imperial=False):
         self.host_ip = host_ip 
         self.host_port = host_port
         self.drone_ip = drone_ip
         self.drone_port = drone_port
         self.drone_address = (drone_ip, drone_port)
+        self.is_imperial =  is_imperial
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.bind((self.host_ip, self.host_port))
 
@@ -74,11 +77,54 @@ class DroneManager(object):
             
     def land(self):
         return self.send_command('land')
+    
+    def move(self, direction, distance):
+        distance= float(distance)
+        if self.is_imperial:
+            distance = int(round(distance * 30.48))
+        else:
+            distance = int(round(distance * 100))
+            
+        return self.send_command(f'{direction} {distance}')
+    
+    def up(self, distance=DEFAULT_DISTANCE):
+        return self.move('up', distance)
+    
+    def down(self, distance=DEFAULT_DISTANCE):
+        return self.move('down', distance)
+    
+    def left(self, distance=DEFAULT_DISTANCE):
+        return self.move('left', distance)
+    
+    def right(self, distance=DEFAULT_DISTANCE):
+        return self.move('right', distance)
+    
+    def forward(self, distance=DEFAULT_DISTANCE):
+        return self.move('forward', distance)
+    
+    def back(self, distance=DEFAULT_DISTANCE):
+        return self.move('back', distance)
+    
             
 if __name__ == '__main__':
     drone_manager = DroneManager()
     drone_manager.takeoff()
+    
     time.sleep(10)
+    
+    drone_manager.forward()
+    time.sleep(5)
+    drone_manager.right()
+    time.sleep(5)
+    drone_manager.back()
+    time.sleep(5)
+    drone_manager.left()
+    time.sleep(5)
+    drone_manager.up()
+    time.sleep(5)
+    drone_manager.down()
+    time.sleep(5)
+    
     drone_manager.land()
     time.sleep(2)
     drone_manager.stop()
