@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_DISTANCE = 0.30
 DEFAULT_SPEED = 10
+DEFAULT_DEGREE = 10
 
 
 class DroneManager(object):
@@ -117,12 +118,22 @@ class DroneManager(object):
     def set_speed(self, speed):
         return self.send_command(f"speed {speed}")
 
+    def clockwise(self, degree=DEFAULT_DEGREE):
+        return self.send_command(f"cw {degree}")
+
+    def counter_clockwise(self, degree=DEFAULT_DEGREE):
+        return self.send_command(f"ccw {degree}")
+
 
 if __name__ == "__main__":
     drone_manager = DroneManager()
 
     drone_manager.set_speed(100)
     drone_manager.takeoff()
+    time.sleep(10)
+    drone_manager.clockwise(90)
+    time.sleep(5)
+    drone_manager.counter_clockwise(90)
     time.sleep(10)
     drone_manager.forward()
     time.sleep(5)
