@@ -124,6 +124,18 @@ class DroneManager(object):
     def counter_clockwise(self, degree=DEFAULT_DEGREE):
         return self.send_command(f"ccw {degree}")
 
+    def flip_front(self):
+        return self.send_command("flip f")
+
+    def flip_back(self):
+        return self.send_command("flip b")
+
+    def flip_left(self):
+        return self.send_command("flip l")
+
+    def flip_right(self):
+        return self.send_command("flip r")
+
 
 if __name__ == "__main__":
     drone_manager = DroneManager()
