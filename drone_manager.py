@@ -1,4 +1,5 @@
 import logging
+import contextlib
 import socket
 import sys
 import threading
@@ -38,6 +39,11 @@ class DroneManager(object):
             target=self.receive_response, args=(self.stop_event,)
         )
         self._response_thread.start()
+
+        self.patrol_event = None
+        self.is_patrol = False
+        self._patrol_semaphore = threading.Semaphore(1)
+        self._thread_patrol = None
 
         self.send_command("command")
         self.send_command("streamon")
@@ -136,30 +142,60 @@ class DroneManager(object):
     def flip_right(self):
         return self.send_command("flip r")
 
+    def patrol(self):
+        if not self.is_patrol:
+            self.patrol_event = threading.Event()
+            self._thread_patrol = threading.Thread(
+                target=self._patrol,
+                args=(
+                    self._patrol_semaphore,
+                    self.patrol_event,
+                ),
+            )
+            self._thread_patrol.start()
+            self.is_patrol = True
+
+    def stop_patrol(self):
+        if self.is_patrol:
+            self.patrol_event.set()
+            retry = 0
+            while self._thread_patrol.isAlive():
+                time.sleep(0.3)
+                if retry > 300:
+                    break
+                retry += 1
+            self.is_patrol = False
+
+    def _patrol(self, semaphore, stop_event):
+        is_acquire = semaphore.acquire(blocking=False)
+        if is_acquire:
+            logger.info({"action": "_patrol", "status": "acquire"})
+            with contextlib.ExitStack() as stack:
+                stack.callback(semaphore.release)
+                status = 0
+                while not stop_event.is_set():
+                    status += 1
+                    if status == 1:
+                        self.up()
+                    if status == 2:
+                        self.clockwise(90)
+                    if status == 3:
+                        self.down()
+                    if status == 4:
+                        status = 0
+                    time.sleep(5)
+        else:
+            logger.warning({"action": "_patrol", "status": "not_acquire"})
+
 
 if __name__ == "__main__":
     drone_manager = DroneManager()
 
-    drone_manager.set_speed(100)
     drone_manager.takeoff()
     time.sleep(10)
-    drone_manager.clockwise(90)
-    time.sleep(5)
-    drone_manager.counter_clockwise(90)
-    time.sleep(10)
-    drone_manager.forward()
-    time.sleep(5)
-    drone_manager.right()
-    time.sleep(5)
-    drone_manager.back()
-    time.sleep(5)
-    drone_manager.left()
-    time.sleep(5)
-    drone_manager.set_speed(10)
-    time.sleep(1)
-    drone_manager.up()
-    time.sleep(5)
-    drone_manager.down()
+    drone_manager.patrol()
+    time.sleep(45)
+    drone_manager.stop_patrol()
     time.sleep(5)
     drone_manager.land()
     drone_manager.stop()
