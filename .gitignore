@@ -1,0 +1,11 @@
+# cache do Python
+__pycache__/
+*.pyc
+*.pyo
+
+*.log
+frames/
+
+venv/
+.venv/
+.env
