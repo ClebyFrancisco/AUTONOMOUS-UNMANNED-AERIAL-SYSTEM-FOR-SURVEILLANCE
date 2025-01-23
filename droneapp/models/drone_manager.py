@@ -13,9 +13,9 @@ from droneapp.models.base import Singleton
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_DISTANCE = 0.30
-DEFAULT_SPEED = 10
-DEFAULT_DEGREE = 10
+DEFAULT_DISTANCE = 1
+DEFAULT_SPEED = 30
+DEFAULT_DEGREE = 45
 
 FRAME_X = int(960)
 FRAME_Y = int(720)
@@ -85,6 +85,10 @@ class DroneManager(metaclass=Singleton):
         self.send_command("command")
         self.send_command("streamon")
         self.set_speed(self.speed)
+        self.is_recording = False
+        self.video_writer = None
+        self.recording_thread = None
+        self.counter_video_recorded = 0
 
     def receive_response(self, stop_event):
         while not stop_event.is_set():
@@ -131,7 +135,11 @@ class DroneManager(metaclass=Singleton):
         return response
 
     def takeoff(self):
-        return self.send_command("takeoff")
+        try:
+            self.send_command("takeoff")
+            return True
+        except:
+            return False
 
     def land(self):
         return self.send_command("land")
@@ -157,10 +165,18 @@ class DroneManager(metaclass=Singleton):
         return self.move("right", distance)
 
     def forward(self, distance=DEFAULT_DISTANCE):
-        return self.move("forward", distance)
+        try:
+            self.move("forward", distance)
+            return True
+        except:
+            return False
 
     def back(self, distance=DEFAULT_DISTANCE):
-        return self.move("back", distance)
+        try:
+            self.move("back", distance)
+            return True
+        except:
+            return False
 
     def set_speed(self, speed):
         return self.send_command(f"speed {speed}")
@@ -169,7 +185,11 @@ class DroneManager(metaclass=Singleton):
         return self.send_command(f"cw {degree}")
 
     def counter_clockwise(self, degree=DEFAULT_DEGREE):
-        return self.send_command(f"ccw {degree}")
+        try:
+            self.send_command(f"ccw {degree}")
+            return True
+        except:
+            return False
 
     def flip_front(self):
         return self.send_command("flip f")
@@ -272,6 +292,56 @@ class DroneManager(metaclass=Singleton):
             _, jpeg = cv.imencode(".jpg", frame)
             jpeg_binary = jpeg.tobytes()
             yield jpeg_binary
-            
-            
-            
+
+    def start_recording(self, output_file="video.avi", fps=30):
+        if self.is_recording:
+            logger.warning({"action": "start_recording", "status": "already_recording"})
+            return
+
+        fourcc = cv.VideoWriter_fourcc(*"XVID")
+        self.video_writer = cv.VideoWriter(output_file, fourcc, fps, (FRAME_X, FRAME_Y))
+        self.is_recording = True
+
+        def record():
+            for frame in self.video_binary_generator():
+                if not self.is_recording:
+                    break
+                self.video_writer.write(frame)
+
+        self.recording_thread = threading.Thread(target=record)
+        self.recording_thread.start()
+
+    def stop_recording(self):
+        if not self.is_recording:
+            logger.warning({"action": "stop_recording", "status": "not_recording"})
+            return
+
+        self.is_recording = False
+        self.counter_video_recorded += 1
+        if self.recording_thread:
+            self.recording_thread.join()
+        if self.video_writer:
+            self.video_writer.release()
+        logger.info({"action": "stop_recording", "status": "stopped"})
+
+    def square_flight(self):
+        """
+        Realizar um voo em quadrado com lados de 1 metro.
+        """
+
+        for i in range(2):
+            print(i)
+
+            a = self.takeoff()
+
+            if a:
+                time.sleep(5)
+
+                b = self.forward(2)
+
+                if b:
+                    time.sleep(5)
+
+                    c = self.back(2)
+
+                    self.land()

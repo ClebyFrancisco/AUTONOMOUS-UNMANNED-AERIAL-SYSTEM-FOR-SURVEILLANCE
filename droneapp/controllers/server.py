@@ -1,4 +1,5 @@
 import logging
+import uuid
 
 from flask import jsonify
 from flask import render_template
@@ -71,8 +72,12 @@ def command():
         drone.patrol()
     if cmd == "stopPatrol":
         drone.stop_patrol()
-    # if cmd == "squareFlight":
-    #     drone.square_flight() 
+    if cmd == "squareFlight":
+        drone.square_flight() 
+    if cmd == "startRecording":
+        start_recording()
+    if cmd == "stopRecording":
+        stop_recording()
 
     return jsonify(status="success"), 200
 
@@ -88,6 +93,25 @@ def video_feed():
     return Response(
         video_generator(), mimetype="multipart/x-mixed-replace; boundary=frame"
     )
+    
+    
+# @app.route("/start_recording", methods=["POST"])
+def start_recording():
+    vd_id = uuid.uuid4()
+    print(f"vd_id: {vd_id}")
+    
+    drone = get_drone()
+    output_file = request.form.get("output_file", f"{vd_id}.avi")
+    drone.start_recording(output_file=output_file)
+    return jsonify(status="recording_started", output_file=output_file), 200
+
+
+# @app.route("/stop_recording", methods=["POST"])
+def stop_recording():
+    drone = get_drone()
+    drone.stop_recording()
+    return jsonify(status="recording_stopped"), 200
+
 
 
 def run():
